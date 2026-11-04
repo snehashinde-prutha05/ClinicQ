@@ -22,7 +22,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 # ----------------------------------------------------------------- config
 BASE = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.environ.get("CLINICQ_DB", os.path.join(BASE, "clinicq.db"))
+DB_PATH = os.environ.get(
+    "CLINICQ_DB",
+    "/tmp/clinicq.db" if os.environ.get("VERCEL") else os.path.join(BASE, "clinicq.db")
+)
 BIND_HOST = os.environ.get("CLINICQ_HOST", "127.0.0.1")
 TEST_MODE = os.environ.get("CLINICQ_TEST") == "1"   # enables /__test__ helpers
 
