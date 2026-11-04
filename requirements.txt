@@ -3,3 +3,6 @@ segno>=1.6
 selenium>=4.20
 pytest>=8.0
 pytest-html>=4.1
+
+psycopg[binary]>=3.2
+python-dotenv>=1.0

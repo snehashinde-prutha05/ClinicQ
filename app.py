@@ -9,6 +9,7 @@ import unicodedata
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from functools import wraps
+from dotenv import load_dotenv
 
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
@@ -43,6 +44,7 @@ ALLOWED = {
     "Skipped": {"Arrived", "Cancelled"},
 }
 
+load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 app.config.update(SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_HTTPONLY=True)
