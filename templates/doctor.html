@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Doctor view · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap">
+<div class="page-head"><div><h1>Doctor view</h1>
+  <p>Average consultation today: {{ avg }} min</p></div></div>
+{% include "_flash.html" %}
+<div class="stats">
+  <div class="stat"><b id="stat-waiting">{{ waiting_count }}</b><span>Waiting now</span></div>
+  <div class="stat"><b>{{ booked }}</b><span>Booked, on the way</span></div>
+  <div class="stat"><b>{{ done }}</b><span>Seen today</span></div>
+  <div class="stat"><b>~{{ clear_minutes }} min</b><span>To clear the queue</span></div>
+</div>
+<div class="grid grid-2e">
+  <section class="now-card">
+    {% if serving %}
+      <p class="muted" style="margin:0">{{ 'Called, waiting for the patient' if serving.status == 'Called' else 'In consultation' }}</p>
+      <div class="now-no" id="current-no">{{ '%02d' % serving.token_no }}</div>
+      <p style="font-size:1.15rem;font-weight:700;margin:.25rem 0 1rem">{{ serving.name }}{% if serving.is_emergency %} <span class="badge badge-priority">Emergency</span>{% endif %}</p>
+      <div class="actions">
+        {% if serving.status == 'Called' %}
+          <form class="inline" method="post" action="{{ url_for('token_action', tid=serving.id, action='start') }}">{{ csrf_field() }}<button id="start-btn" class="btn btn-lg" type="submit">Start consultation</button></form>
+          <form class="inline" method="post" action="{{ url_for('token_action', tid=serving.id, action='skip') }}">{{ csrf_field() }}<button id="skip-btn" class="btn btn-danger btn-lg" type="submit">Not present</button></form>
+        {% else %}
+          <form class="inline" method="post" action="{{ url_for('token_action', tid=serving.id, action='complete') }}">{{ csrf_field() }}<button id="complete-btn" class="btn btn-lg" type="submit">Complete</button></form>
+        {% endif %}
+      </div>
+    {% else %}
+      <h2>No patient in the room</h2>
+      <p>{% if waiting_count %}Next in line is token {{ '%02d' % queue[0].token_no }}.{% else %}Nobody is waiting yet.{% endif %}</p>
+      <form method="post" action="{{ url_for('doctor_call_next') }}">{{ csrf_field() }}
+        <button id="call-next-btn" class="btn btn-lg" type="submit" {{ 'disabled' if not waiting_count }}>Call next patient</button></form>
+    {% endif %}
+  </section>
+  <section class="card">
+    <h2>Up next</h2>
+    {% if queue %}
+    <div class="table-wrap"><table id="upnext-table">
+      <thead><tr><th>#</th><th>Token</th><th>Patient</th><th></th></tr></thead><tbody>
+      {% for t in queue %}<tr><td>{{ loop.index }}</td><td class="tok">{{ '%02d' % t.token_no }}</td><td>{{ t.name }}</td>
+        <td>{% if t.is_emergency %}<span class="badge badge-priority">Emergency</span>{% endif %}</td></tr>{% endfor %}
+      </tbody></table></div>
+    {% else %}<p class="empty">The queue is empty.</p>{% endif %}
+  </section>
+</div>
+</div>
+<script>
+setInterval(() => location.reload(), 15000);
+</script>
+{% endblock %}

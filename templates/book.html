@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Get a token · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap-narrow">
+<section class="card">
+  <h1 class="card-title">Get a Token</h1>
+  {% if closed %}
+  <div class="flash flash-error" id="booking-closed" role="status">{{ closed }}</div>
+  <a id="back-home" class="btn btn-block back" href="{{ url_for('index') }}">&larr; Back to Home</a>
+  {% else %}
+  <p class="muted" style="text-align:center">Takes about ten seconds. No account needed.</p>
+  {% if errors._ %}<div class="flash flash-error" role="alert" id="form-error">{{ errors._ }}</div>{% endif %}
+  <form method="post" novalidate>
+    {{ csrf_field() }}
+    <div class="field">
+      <label for="name">Full Name</label>
+      <input class="input {{ 'invalid' if errors.name }}" id="name" name="name" autocomplete="name" placeholder="Enter full name" value="{{ form.get('name','') }}" aria-describedby="name-err">
+      {% if errors.name %}<div class="err" id="name-err">{{ errors.name }}</div>{% endif %}
+    </div>
+    <div class="field">
+      <label for="phone">Mobile Number</label>
+      <input class="input {{ 'invalid' if errors.phone }}" id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="98765 43210" value="{{ form.get('phone','') }}" aria-describedby="phone-err">
+      {% if errors.phone %}<div class="err" id="phone-err">{{ errors.phone }}</div>
+      {% else %}<div class="hint">One active token per phone number.</div>{% endif %}
+    </div>
+    <button id="book-btn" class="btn btn-block btn-lg" type="submit">Get my token</button>
+    <a id="back-home" class="btn btn-quiet btn-block back" href="{{ url_for('index') }}">&larr; Back to Home</a>
+  </form>
+  {% endif %}
+  <details class="rules">
+    <summary>How the queue stays fair</summary>
+    <ul class="steps">
+      <li>You get a token number and a time to reach the clinic by.</li>
+      <li>When you reach the clinic, tap <strong>I'm here</strong> on your token page (it opens {{ CHECKIN_OPEN_MIN }} minutes before your time) or tell reception. You are then called in token order.</li>
+      <li>If you arrive more than {{ GRACE_MIN }} minutes after that time, you join behind the patients already waiting.</li>
+      <li>Emergencies are always seen first.</li>
+      <li>If you are called and are not there within {{ NOSHOW_MIN }} minutes, your turn is skipped. You can rejoin once.</li>
+    </ul>
+  </details>
+</section>
+</div>
+{% endblock %}

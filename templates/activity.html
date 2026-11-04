@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Activity log · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap">
+<div class="page-head"><div><h1>Activity log</h1><p>Every queue action today, newest first. This is the audit trail.</p></div></div>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table id="activity-table">
+    <thead><tr><th>Time</th><th>Who</th><th>Action</th><th>Token</th></tr></thead>
+    <tbody>
+    {% for e in rows %}<tr><td>{{ e.at[11:19] }}</td><td>{{ e.actor }}</td><td>{{ e.action }}</td><td class="tok">{% if e.token_no %}{{ '%02d' % e.token_no }}{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>
+  {% else %}<p class="empty">Nothing has happened yet today.</p>{% endif %}
+</section>
+</div>
+{% endblock %}

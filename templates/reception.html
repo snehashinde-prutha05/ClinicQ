@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Queue desk · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap">
+<div class="page-head">
+  <div><h1>Queue desk</h1>
+  <p>Now serving: <strong id="serving">{{ ('%02d' % serving.token_no ~ ' (' ~ serving.status|label ~ ')') if serving else 'nobody' }}</strong></p></div>
+</div>
+{% include "_flash.html" %}
+<div class="stats">
+  <div class="stat"><b id="stat-waiting">{{ stats.waiting }}</b><span>Waiting</span></div>
+  <div class="stat"><b id="stat-booked">{{ stats.booked }}</b><span>Booked, not arrived</span></div>
+  <div class="stat"><b>{{ stats.inroom }}</b><span>With the doctor</span></div>
+  <div class="stat"><b>{{ stats.done }}</b><span>Seen today</span></div>
+</div>
+<div class="grid grid-2">
+  <div>
+    <section class="card">
+      <h2>Issue a walk-in token</h2>
+      <form method="post" action="{{ url_for('reception_issue') }}">
+        {{ csrf_field() }}
+        <div class="field"><label for="walk-name">Patient name</label>
+          <input class="input" id="walk-name" name="name" required></div>
+        <div class="field"><label for="walk-phone">Mobile number</label>
+          <input class="input" id="walk-phone" name="phone" type="tel" inputmode="tel" required placeholder="98765 43210"></div>
+        <div class="field"><label class="check"><input id="walk-emergency" type="checkbox" name="emergency"> Emergency (seen next)</label></div>
+        <button id="issue-btn" class="btn btn-block" type="submit">Issue token</button>
+      </form>
+    </section>
+    <section class="card" id="online-card">
+      <div class="card-head"><h2>Online booking</h2>
+        <span class="badge {{ 'badge-arrived' if online.open else 'badge-skipped' }}" id="online-state">{{ 'Open' if online.open else 'Paused' }}</span></div>
+      <p class="small muted" id="online-usage">{{ online.used }} of {{ online.limit }} online tokens used today.</p>
+      <form method="post" action="{{ url_for('online_toggle') }}">{{ csrf_field() }}
+        <button id="toggle-online" class="btn btn-quiet btn-block" type="submit">{{ 'Pause online booking' if online.open else 'Resume online booking' }}</button></form>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Recent activity</h2><a id="open-activity" class="small" href="{{ url_for('activity') }}">View all</a></div>
+      {% for e in events %}
+        <p class="small" style="margin-bottom:.4rem"><span class="muted">{{ e.at[11:16] }}</span> {{ e.actor }}: {{ e.action }}{% if e.token_no %} (token {{ '%02d' % e.token_no }}){% endif %}</p>
+      {% else %}<p class="empty">Nothing yet today.</p>{% endfor %}
+    </section>
+  </div>
+  <div>
+    <section class="card">
+      <div class="card-head"><h2>Waiting, in calling order</h2></div>
+      {% if queue %}
+      <div class="table-wrap"><table id="queue-table">
+        <thead><tr><th>#</th><th>Token</th><th>Patient</th><th>Type</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for t in queue %}
+        <tr id="row-{{ t.id }}">
+          <td>{{ loop.index }}</td>
+          <td class="tok">{{ '%02d' % t.token_no }}</td>
+          <td>{{ t.name }}<br><span class="muted small">{{ t.phone }}</span></td>
+          <td>{% if t.is_emergency %}<span class="badge badge-priority">Emergency</span>{% else %}<span class="badge">{{ t.source }}</span>{% endif %}{% if t.was_late %} <span class="badge badge-booked">late</span>{% endif %}</td>
+          <td><div class="actions">
+            {% if not t.is_emergency %}
+            <form class="inline" method="post" action="{{ url_for('token_action', tid=t.id, action='emergency') }}">{{ csrf_field() }}<button id="emergency-{{ t.id }}" class="btn btn-danger btn-sm" type="submit">Emergency</button></form>
+            {% endif %}
+            <a id="slip-{{ t.id }}" class="btn btn-quiet btn-sm" href="{{ url_for('slip', tid=t.id) }}">Slip</a>
+            <form class="inline" method="post" action="{{ url_for('token_action', tid=t.id, action='cancel') }}">{{ csrf_field() }}<button id="cancel-{{ t.id }}" class="btn btn-quiet btn-sm" type="submit">Cancel</button></form>
+          </div></td>
+        </tr>
+        {% endfor %}
+        </tbody></table></div>
+      {% else %}<p class="empty" id="queue-empty">Nobody is waiting right now.</p>{% endif %}
+    </section>
+    <section class="card">
+      <h2>Booked online, not arrived yet</h2>
+      {% if booked %}
+      <div class="table-wrap"><table id="booked-table">
+        <thead><tr><th>Token</th><th>Patient</th><th>Reach by</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for t in booked %}
+        <tr id="row-{{ t.id }}">
+          <td class="tok">{{ '%02d' % t.token_no }}</td>
+          <td>{{ t.name }}<br><span class="muted small">{{ t.phone }}</span></td>
+          <td>{{ t.expected_arrival|hm }}</td>
+          <td><div class="actions">
+            <form class="inline" method="post" action="{{ url_for('token_action', tid=t.id, action='arrive') }}">{{ csrf_field() }}<button id="arrive-{{ t.id }}" class="btn btn-sm" type="submit">Mark arrived</button></form>
+            <form class="inline" method="post" action="{{ url_for('token_action', tid=t.id, action='emergency') }}">{{ csrf_field() }}<button id="emergency-{{ t.id }}" class="btn btn-danger btn-sm" type="submit">Emergency</button></form>
+            <form class="inline" method="post" action="{{ url_for('token_action', tid=t.id, action='cancel') }}">{{ csrf_field() }}<button id="cancel-{{ t.id }}" class="btn btn-quiet btn-sm" type="submit">Cancel</button></form>
+          </div></td>
+        </tr>
+        {% endfor %}
+        </tbody></table></div>
+      {% else %}<p class="empty">No online bookings are waiting to arrive.</p>{% endif %}
+    </section>
+    {% if skipped %}
+    <section class="card">
+      <h2>Skipped (not present when called)</h2>
+      <div class="table-wrap"><table id="skipped-table">
+        <thead><tr><th>Token</th><th>Patient</th><th>Actions</th></tr></thead>
+        <tbody>
+        {% for t in skipped %}
+        <tr id="row-{{ t.id }}">
+          <td class="tok">{{ '%02d' % t.token_no }}</td>
+          <td>{{ t.name }}<br><span class="muted small">{{ t.phone }}</span></td>
+          <td><div class="actions">
+            {% if not t.rejoined %}
+            <form class="inline" method="post" action="{{ url_for('token_action', tid=t.id, action='rejoin') }}">{{ csrf_field() }}<button id="rejoin-{{ t.id }}" class="btn btn-sm" type="submit">Rejoin queue</button></form>
+            {% else %}<span class="muted small">Already rejoined once</span>{% endif %}
+            <form class="inline" method="post" action="{{ url_for('token_action', tid=t.id, action='cancel') }}">{{ csrf_field() }}<button id="cancel-{{ t.id }}" class="btn btn-quiet btn-sm" type="submit">Cancel</button></form>
+          </div></td>
+        </tr>
+        {% endfor %}
+        </tbody></table></div>
+    </section>
+    {% endif %}
+  </div>
+</div>
+</div>
+<script>
+setInterval(() => { if (!document.querySelector('input:focus')) location.reload(); }, 15000);
+</script>
+{% endblock %}

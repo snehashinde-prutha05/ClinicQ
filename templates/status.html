@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Token {{ '%02d' % t.token_no }} · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap-narrow">
+{% include "_flash.html" %}
+<div id="panel" data-url="{{ url_for('status_panel', code=t.code) }}">{% include "_panel.html" %}</div>
+<p class="ongrad small" style="margin-top:1rem;text-align:center">Keep this page open, or save the link to come back to your token. You can also use <a id="status-track" href="{{ url_for('track') }}" style="color:#fff">Track my token</a> with your phone number.</p>
+<div class="slip-actions">
+  <button id="copy-link" class="btn btn-quiet" type="button">Copy link to my token</button>
+  <a id="back-home" class="btn btn-quiet" href="{{ url_for('index') }}">&larr; Back to Home</a>
+</div>
+</div>
+<script>
+const panel = document.getElementById('panel');
+setInterval(async () => {
+  try {
+    const r = await fetch(panel.dataset.url, {headers: {'X-Requested-With': 'fetch'}});
+    if (r.ok) panel.innerHTML = await r.text();
+  } catch (e) { /* offline: keep the last view */ }
+}, 10000);
+document.getElementById('copy-link').addEventListener('click', async (e) => {
+  try { await navigator.clipboard.writeText(location.href); e.target.textContent = 'Link copied'; }
+  catch (err) { window.prompt('Copy this link:', location.href); }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Track my token · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap-narrow">
+<section class="card">
+  <h1 class="card-title">Track My Token</h1>
+  <p class="muted" style="text-align:center">Enter the phone number you used when you got your token.</p>
+  {% include "_flash.html" %}
+  <form method="post" action="{{ url_for('find') }}">
+    {{ csrf_field() }}
+    <div class="field">
+      <label for="find-phone">Mobile Number</label>
+      <input class="input" id="find-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required placeholder="98765 43210">
+    </div>
+    <button id="find-btn" class="btn btn-block btn-lg" type="submit">Find my token</button>
+    <a id="back-home" class="btn btn-quiet btn-block back" href="{{ url_for('index') }}">&larr; Back to Home</a>
+  </form>
+  <p class="hint" style="margin-top:1rem;text-align:center">No token yet? <a id="track-book" href="{{ url_for('book') }}">Get a token</a></p>
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Token slip {{ '%02d' % t.token_no }} · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap-narrow">
+{% include "_flash.html" %}
+<article class="ticket {{ 'is-priority' if t.is_emergency }}" id="slip">
+  <div class="ticket-top">
+    <div>
+      <span class="ticket-label">Token issued</span>
+      <div class="ticket-no" id="slip-token-no">{{ '%02d' % t.token_no }}</div>
+    </div>
+    <div style="text-align:right">
+      {% if t.is_emergency %}<span class="badge badge-priority">Emergency</span><br>{% endif %}
+      <span class="badge badge-{{ t.status|slug }}" style="margin-top:.4rem" id="slip-status">{{ t.status|label }}</span>
+    </div>
+  </div>
+  <div class="ticket-tear" aria-hidden="true"></div>
+  <div class="ticket-body">
+    <p class="big" id="slip-name">{{ t.name }}</p>
+    {% if est %}
+      <p id="slip-estimate">{% if est.waiting_ahead == 0 %}You are next.{% else %}About <strong>{{ est.minutes }} min</strong> wait, {{ est.waiting_ahead }} {{ 'patient' if est.waiting_ahead == 1 else 'patients' }} ahead.{% endif %}</p>
+    {% endif %}
+  </div>
+  <div class="ticket-info">
+    <dl class="info">
+      <div><dt>Phone</dt><dd id="slip-phone">{{ t.phone }}</dd></div>
+      <div><dt>Issued at</dt><dd id="slip-issued">{{ t.created_at|hm }}</dd></div>
+      {% if turn_at %}<div><dt>Estimated turn</dt><dd id="slip-turn-at">around {{ turn_at|hm }}</dd></div>{% endif %}
+      <div><dt>Type</dt><dd>Walk-in</dd></div>
+    </dl>
+    <div class="slip-qr">
+      {% if qr %}{{ qr }}{% endif %}
+      <div class="small">
+        <strong>Follow your place live</strong><br>
+        <span class="muted">{% if qr %}Scan the code, or open{% else %}Open{% endif %} this link on a phone:</span><br>
+        <a id="slip-track-link" href="{{ track_url }}" style="word-break:break-all">{{ track_url }}</a>
+      </div>
+    </div>
+  </div>
+</article>
+<div class="slip-actions">
+  <button id="print-btn" class="btn btn-quiet" type="button" onclick="window.print()">Print slip</button>
+  <a id="slip-back" class="btn" href="{{ url_for('reception') }}">Back to queue desk</a>
+</div>
+</div>
+{% endblock %}

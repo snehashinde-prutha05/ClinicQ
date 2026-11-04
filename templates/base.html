@@ -1,0 +1,43 @@
+{% macro nl(endpoint, text, id) -%}
+<a id="{{ id }}" href="{{ url_for(endpoint) }}"{% if request.endpoint == endpoint %} class="current" aria-current="page"{% endif %}>{{ text }}</a>
+{%- endmacro %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}ClinicQ{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar"><div class="topbar-in">
+  <a class="brand" href="{{ url_for('index') }}"><span class="brand-mark" aria-hidden="true">Q</span>ClinicQ</a>
+  <nav class="nav" aria-label="Main">
+    {{ nl('index', 'Home', 'nav-home') }}
+    {% if session.role == 'receptionist' %}
+      {{ nl('reception', 'Queue desk', 'nav-desk') }}
+      {{ nl('activity', 'Activity log', 'nav-activity') }}
+      {{ nl('display', 'Waiting-room screen', 'nav-display') }}
+      <form method="post" action="{{ url_for('logout') }}">{{ csrf_field() }}<button id="logout-btn" class="btn btn-quiet btn-sm" type="submit">Log out</button></form>
+    {% elif session.role == 'doctor' %}
+      {{ nl('doctor', 'Doctor view', 'nav-doctor') }}
+      {{ nl('activity', 'Activity log', 'nav-activity') }}
+      {{ nl('display', 'Waiting-room screen', 'nav-display') }}
+      <form method="post" action="{{ url_for('logout') }}">{{ csrf_field() }}<button id="logout-btn" class="btn btn-quiet btn-sm" type="submit">Log out</button></form>
+    {% else %}
+      {{ nl('book', 'Get a token', 'nav-book') }}
+      {{ nl('track', 'Track my token', 'nav-track') }}
+      {{ nl('login', 'Staff login', 'nav-login') }}
+      {{ nl('about', 'About', 'nav-about') }}
+    {% endif %}
+  </nav>
+</div></header>
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+</body>
+</html>

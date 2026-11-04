@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ code }} · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap-narrow"><section class="card">
+  <h1 class="card-title" style="font-size:1.4rem">{{ msg }}</h1>
+  <a id="back-home" class="btn btn-block" href="{{ url_for('index') }}">&larr; Back to Home</a>
+</section></div>
+{% endblock %}

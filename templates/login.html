@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Staff login · ClinicQ{% endblock %}
+{% block content %}
+<div class="wrap-narrow">
+<section class="card">
+  <h1 class="card-title">Staff Login</h1>
+  <p class="muted" style="text-align:center">For the receptionist and the doctor.</p>
+  {% include "_flash.html" %}
+  <form method="post">
+    {{ csrf_field() }}
+    <div class="field"><label for="username">Username</label>
+      <input class="input" id="username" name="username" autocomplete="username" required></div>
+    <div class="field"><label for="password">Password</label>
+      <input class="input" id="password" name="password" type="password" autocomplete="current-password" required></div>
+    <button id="login-btn" class="btn btn-block btn-lg" type="submit">Log in</button>
+    <a id="back-home" class="btn btn-quiet btn-block back" href="{{ url_for('index') }}">&larr; Back to Home</a>
+  </form>
+  <div class="login-hint"><strong>Demo accounts:</strong> reception / reception123 &nbsp;·&nbsp; doctor / doctor123</div>
+</section>
+</div>
+{% endblock %}

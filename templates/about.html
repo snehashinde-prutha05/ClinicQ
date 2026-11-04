@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About ClinicQ (standalone preview) · How the queue works</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ClinicQ: modern, minimal. Blue gradient, white cards, one accent colour. */
+:root{
+  --ink:#0d2745; --h:#134fae; --blue:#1d56c4; --blue-dark:#15409a; --sky:#eaf2fd; --sky2:#d9e7fb;
+  --card:#fff; --line:#dbe5f3; --muted:#5a6f88;
+  --ok:#0f7a5a; --ok-bg:#e3f5ee; --warn:#9a5b06; --warn-bg:#fdf1dc;
+  --danger:#b3261e; --danger-bg:#fdeceb;
+  --shadow:0 10px 30px rgba(8,40,110,.18);
+  --radius:20px;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;min-height:100vh;color:var(--ink);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.55;
+  background:#2a63cb linear-gradient(150deg,#3f86e6 0%,#2a63cb 52%,#1b479f 100%) fixed}
+h1,h2,h3{margin:0 0 .5rem;line-height:1.2;letter-spacing:-.015em}
+h1{font-size:clamp(2rem,4.5vw,2.7rem);font-weight:800}
+h2{font-size:1.2rem;font-weight:800;color:var(--ink)}
+h3{font-size:1rem;font-weight:700}
+p{margin:0 0 .75rem}
+a{color:var(--blue)}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.ongrad{color:rgba(255,255,255,.92)}
+.skip{position:absolute;left:-999px}
+.skip:focus{left:1rem;top:1rem;background:#fff;padding:.5rem 1rem;z-index:10;border-radius:8px}
+:focus-visible{outline:3px solid #fff;outline-offset:2px;box-shadow:0 0 0 5px var(--blue)}
+
+/* top bar */
+.topbar{background:rgba(255,255,255,.97);box-shadow:0 1px 0 rgba(8,40,110,.08)}
+.topbar-in{max-width:1120px;margin:0 auto;padding:.65rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.brand{font-weight:800;font-size:1.2rem;color:var(--ink);text-decoration:none;display:flex;align-items:center;gap:.55rem}
+.brand-mark{width:30px;height:30px;border-radius:9px;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:1rem}
+.nav{display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap}
+.nav a{text-decoration:none;font-weight:600;font-size:.92rem;color:var(--muted)}
+.nav a:hover{color:var(--blue)}
+.nav form{margin:0}
+
+/* layout */
+.wrap{max-width:1120px;margin:0 auto;padding:2rem 1.25rem 4rem}
+.wrap-narrow{max-width:520px;margin:0 auto;padding:2rem 1.25rem 3rem;min-height:calc(100vh - 58px);display:flex;flex-direction:column;justify-content:center}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1.25rem;color:#fff}
+.page-head h1{color:#fff;margin:0;font-size:clamp(1.7rem,3.5vw,2.1rem)}
+.page-head p{margin:.2rem 0 0;color:rgba(255,255,255,.92)}
+.grid{display:grid;gap:1.25rem}
+.grid-2{grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);align-items:start}
+.grid-2e{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1rem;margin-bottom:1.25rem}
+@media (max-width:860px){.grid-2,.grid-2e{grid-template-columns:1fr}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* cards */
+.card{background:var(--card);border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow)}
+.card + .card{margin-top:1.25rem}
+.grid > .card + .card{margin-top:0}
+.card-head{display:flex;justify-content:space-between;align-items:center;gap:.75rem;margin-bottom:.75rem}
+.card-head h2{margin:0}
+.card-title{text-align:center;color:var(--ink);font-size:1.7rem;font-weight:800;margin-bottom:.5rem}
+.stat{background:var(--card);border-radius:16px;padding:1rem 1.25rem;box-shadow:var(--shadow)}
+.stat b{display:block;font-size:1.9rem;font-weight:800;line-height:1.1;color:var(--h)}
+.stat span{color:var(--muted);font-size:.9rem}
+
+/* home */
+.home-head{text-align:center;color:#fff;padding:2.25rem 0 1.25rem}
+.home-head h1{color:#fff}
+.home-head p{max-width:54ch;margin:.6rem auto 0;color:#fff;font-size:1.1rem;opacity:.95}
+.group-title{color:#fff;font-weight:700;font-size:.95rem;margin:1.9rem 0 .75rem;opacity:.95}
+.dash{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.25rem}
+@media (max-width:900px){.dash{grid-template-columns:1fr}}
+.dash-card{background:#fff;border-radius:var(--radius);padding:1.4rem;box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:240px}
+.dash-card p{color:var(--muted);font-size:.95rem}
+.dash-card .dash-act{margin-top:auto;padding-top:.75rem}
+.icon{width:44px;height:44px;border-radius:13px;background:var(--sky);display:grid;place-items:center;margin-bottom:.9rem;color:var(--blue)}
+.icon svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.my-token{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.1rem 1.4rem;display:flex;align-items:center;gap:1.1rem;flex-wrap:wrap;margin-bottom:.5rem}
+.my-no{font-size:2.6rem;font-weight:800;line-height:1;color:var(--h);letter-spacing:-.03em}
+.my-token .grow{flex:1;min-width:180px}
+
+/* guidance */
+.how{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.9rem;margin:.5rem 0 1.25rem;padding:0}
+@media (max-width:900px){.how{grid-template-columns:1fr}}
+.how li{display:flex;gap:.8rem;align-items:flex-start;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);border-radius:16px;padding:.9rem 1rem;color:#fff;font-size:.92rem}
+.how b{flex:none;width:28px;height:28px;border-radius:50%;background:#fff;color:var(--blue);display:grid;place-items:center;font-size:.9rem}
+.nav a.current{color:var(--blue);box-shadow:0 2px 0 var(--blue)}
+
+/* about page */
+.about{max-width:980px}
+.about-head{text-align:center;color:#fff;padding:2rem 0 .5rem}
+.about-head h1{color:#fff}
+.about-head p{max-width:62ch;margin:.7rem auto 0;color:#fff;font-size:1.1rem;opacity:.96}
+.sec-title{color:#fff;font-weight:800;font-size:1.35rem;margin:2.4rem 0 .9rem}
+.sec-title small{display:block;font-weight:500;font-size:.92rem;opacity:.9;margin-top:.1rem}
+.cards3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.1rem}
+.cards2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.1rem}
+@media (max-width:760px){.cards3,.cards2{grid-template-columns:1fr}}
+.info-card{background:#fff;border-radius:var(--radius);padding:1.3rem;box-shadow:var(--shadow)}
+.info-card h3{font-size:1.05rem;margin:0 0 .3rem}
+.info-card p{color:var(--muted);font-size:.95rem;margin:0}
+.how-split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:1.4rem;align-items:center}
+@media (max-width:860px){.how-split{grid-template-columns:1fr}}
+.step-list{list-style:none;margin:0;padding:0;display:grid;gap:1rem}
+.step{display:flex;gap:1rem;align-items:flex-start}
+.step .icon{flex:none;margin:0}
+.example{margin:0}
+.example-tag{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.4);color:#fff;font-size:.8rem;font-weight:700;border-radius:999px;padding:.15rem .75rem;margin-bottom:.6rem}
+.privacy{display:flex;gap:1rem;align-items:flex-start;margin-top:1.1rem}
+.privacy .icon{flex:none;margin:0}
+.faq details{background:#fff;border-radius:14px;padding:.9rem 1.2rem;margin-bottom:.6rem;box-shadow:var(--shadow)}
+.faq summary{cursor:pointer;font-weight:700}
+.faq details p{margin:.6rem 0 0;color:var(--muted)}
+.cta-band{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);border-radius:var(--radius);padding:1.6rem 1.2rem;text-align:center;color:#fff;margin-top:2.4rem}
+.cta-band h2{color:#fff;margin-bottom:1rem}
+.about-note{text-align:center;color:rgba(255,255,255,.88);font-size:.85rem;margin:1.4rem 0 0}
+.about-link{text-align:center;margin:-.4rem 0 1rem}
+.about-link a{color:#fff;font-weight:600}
+
+/* forms */
+.field{margin-bottom:1rem}
+label{display:block;font-weight:700;font-size:.9rem;margin-bottom:.35rem;color:var(--ink)}
+.input{width:100%;padding:.8rem .95rem;border:1.5px solid var(--line);border-radius:12px;font:inherit;color:var(--ink);background:#fff}
+.input:focus{border-color:var(--blue);outline:none;box-shadow:0 0 0 3px #cfe0ff}
+.input.invalid{border-color:var(--danger)}
+.hint{font-size:.85rem;color:var(--muted);margin-top:.3rem}
+.err{font-size:.875rem;color:var(--danger);margin-top:.3rem;font-weight:600}
+.check{display:flex;align-items:center;gap:.6rem;font-weight:600;color:var(--ink)}
+.check input{width:18px;height:18px;accent-color:var(--blue)}
+details.rules{margin-top:1.25rem;border-top:1px solid var(--line);padding-top:1rem}
+details.rules summary{cursor:pointer;font-weight:700;color:var(--h)}
+.steps{padding-left:1.1rem;margin:.6rem 0 0;color:var(--ink)}
+.steps li{margin-bottom:.4rem}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;border:2px solid var(--blue);background:var(--blue);color:#fff;font:inherit;font-weight:700;padding:.7rem 1.4rem;border-radius:12px;cursor:pointer;text-decoration:none;transition:background .15s,transform .05s}
+.btn:hover{background:var(--blue-dark);border-color:var(--blue-dark)}
+.btn:active{transform:translateY(1px)}
+.btn-block{display:flex;width:100%}
+.btn-lg{padding:.9rem 1.6rem;font-size:1.05rem}
+.btn-quiet{background:#fff;color:var(--blue)}
+.btn-quiet:hover{background:var(--sky);color:var(--blue-dark);border-color:var(--blue)}
+.btn-danger{background:#fff;color:var(--danger);border-color:#e7b3af}
+.btn-danger:hover{background:var(--danger-bg);color:var(--danger);border-color:var(--danger)}
+.btn-sm{padding:.35rem .75rem;font-size:.85rem;border-radius:9px;border-width:1.5px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn-white{background:#fff;color:var(--blue);border-color:#fff}
+.btn-white:hover{background:var(--sky);color:var(--blue-dark);border-color:var(--sky)}
+.btn-ghost{background:transparent;color:#fff;border-color:#fff}
+.btn-ghost:hover{background:rgba(255,255,255,.16);border-color:#fff}
+form.inline{display:inline;margin:0}
+.actions{display:flex;gap:.4rem;flex-wrap:wrap}
+.back{margin-top:.75rem}
+
+/* flash */
+.flash{padding:.8rem 1rem;border-radius:12px;margin-bottom:1rem;font-weight:600;border:1px solid}
+.flash-error{background:var(--danger-bg);color:var(--danger);border-color:#f2c4c1}
+.flash-ok{background:var(--ok-bg);color:var(--ok);border-color:#b8e3d3}
+
+/* badges */
+.badge{display:inline-block;padding:.2rem .7rem;border-radius:999px;font-size:.8rem;font-weight:700;background:var(--sky);color:var(--blue-dark)}
+.badge-arrived,.badge-completed{background:var(--ok-bg);color:var(--ok)}
+.badge-called,.badge-in-consultation{background:#dbe8ff;color:var(--blue-dark)}
+.badge-skipped,.badge-booked{background:var(--warn-bg);color:var(--warn)}
+.badge-cancelled{background:#eceff3;color:var(--muted)}
+.badge-priority{background:var(--danger);color:#fff}
+
+/* tables */
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th{text-align:left;font-weight:700;color:var(--muted);background:var(--sky);font-size:.8rem;padding:.55rem .7rem;white-space:nowrap}
+th:first-child{border-radius:10px 0 0 10px}th:last-child{border-radius:0 10px 10px 0}
+td{padding:.7rem .7rem;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+.tok{font-weight:800;font-size:1.05rem;color:var(--h)}
+.empty{color:var(--muted);padding:.75rem .1rem;margin:0}
+
+/* the ticket (patient token + walk-in slip) */
+.ticket{background:#fff;border-radius:24px;overflow:hidden;box-shadow:var(--shadow)}
+.ticket-top{background:var(--ink);color:#fff;padding:1.4rem 1.6rem;display:flex;justify-content:space-between;align-items:flex-end;gap:1rem}
+.ticket.is-priority .ticket-top{background:#8d1d17}
+.ticket-label{font-size:.9rem;opacity:.85}
+.ticket-no{font-size:5rem;font-weight:800;line-height:1;letter-spacing:-.04em}
+.ticket-tear{margin:0 1.2rem;border-top:2px dashed var(--line);height:0}
+.ticket-body{padding:1.3rem 1.6rem .6rem}
+.big{font-size:1.55rem;font-weight:800;line-height:1.2;margin-bottom:.4rem;color:var(--ink)}
+.ticket-info{padding:.4rem 1.6rem 1.3rem}
+.info{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.7rem 1.2rem;margin:0;padding-top:.9rem;border-top:1px solid var(--line)}
+.info div{min-width:0}
+.info dt{font-size:.78rem;color:var(--muted);font-weight:600}
+.info dd{margin:0;font-weight:700;overflow-wrap:anywhere}
+.ticket-foot{padding:.9rem 1.6rem;background:var(--sky);display:flex;justify-content:space-between;gap:1rem;font-size:.92rem}
+.note{background:var(--warn-bg);color:var(--warn);border-radius:12px;padding:.65rem .85rem;font-size:.9rem;margin-top:.9rem}
+.progress{list-style:none;display:flex;margin:0 0 1.2rem;padding:0}
+.progress li{flex:1;text-align:center;font-size:.72rem;color:var(--muted);position:relative;padding-top:20px}
+.progress li::before{content:"";position:absolute;top:0;left:50%;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:var(--sky2);z-index:1}
+.progress li::after{content:"";position:absolute;top:5px;left:-50%;width:100%;height:2px;background:var(--sky2)}
+.progress li:first-child::after{display:none}
+.progress li.done::before,.progress li.current::before{background:var(--blue)}
+.progress li.done::after,.progress li.current::after{background:var(--blue)}
+.progress li.current{color:var(--ink);font-weight:700}
+.progress li.current::before{box-shadow:0 0 0 4px #cfe0ff}
+
+/* walk-in slip */
+.slip-qr{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--line)}
+.slip-qr svg{flex:none;border:1px solid var(--line);border-radius:10px}
+.slip-qr > div{flex:1;min-width:180px}
+.slip-actions{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:1rem;justify-content:center}
+
+/* doctor + waiting-room screen */
+.now-card{background:#fff;border-radius:var(--radius);padding:1.75rem 1.5rem 1.5rem;box-shadow:var(--shadow),inset 0 6px 0 var(--blue)}
+.now-no{font-size:4rem;font-weight:800;line-height:1;letter-spacing:-.03em;color:var(--h)}
+.board{min-height:100vh;display:grid;place-items:center;text-align:center;padding:2rem;color:#fff}
+.board .lbl{font-size:1.4rem;opacity:.9}
+.board .num{font-size:clamp(7rem,24vw,16rem);font-weight:800;line-height:1;letter-spacing:-.05em}
+.board .next{font-size:1.6rem;margin-top:1.5rem}
+.board .next b{display:inline-block;background:rgba(255,255,255,.2);border-radius:12px;padding:.2rem .9rem;margin:.25rem}
+.login-hint{background:var(--sky);border-radius:12px;padding:.75rem 1rem;font-size:.875rem;margin-top:1rem}
+
+@media print{
+  body{background:#fff}
+  .topbar,.slip-actions,.skip,.no-print{display:none!important}
+  .wrap-narrow{min-height:0;padding:0}
+  .ticket{box-shadow:none;border:1px solid #000}
+  .ticket-top{background:#fff!important;color:#000;border-bottom:1px solid #000}
+}
+
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar"><div class="topbar-in">
+  <a class="brand" href="http://127.0.0.1:5000/"><span class="brand-mark" aria-hidden="true">Q</span>ClinicQ</a>
+  <nav class="nav" aria-label="Main">
+    <a id="nav-home" href="http://127.0.0.1:5000/">Home</a>
+    
+      <a id="nav-book" href="http://127.0.0.1:5000/book">Get a token</a>
+      <a id="nav-track" href="http://127.0.0.1:5000/track">Track my token</a>
+      <a id="nav-login" href="http://127.0.0.1:5000/login">Staff login</a>
+      <a id="nav-about" href="http://127.0.0.1:5000/about" class="current" aria-current="page">About</a>
+    
+    
+  </nav>
+</div></header>
+<main id="main">
+
+
+<div class="wrap about">
+
+<header class="about-head" id="about-hero">
+  <h1>About ClinicQ</h1>
+  <p>Waiting at a small clinic with no idea of your turn is stressful. ClinicQ gives every patient a token, shows their place in the queue and an estimated time, and applies the same fair rules to walk-ins and online bookings.</p>
+</header>
+
+<h2 class="sec-title">Why small clinics need it <small>Three everyday problems</small></h2>
+<section class="cards3" aria-label="Problems">
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><h3>Nobody knows their turn</h3><p>Patients sit for hours, or step out and miss their turn.</p></article>
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><h3>Who goes first?</h3><p>Without clear rules, online and walk-in patients end up arguing.</p></article>
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span><h3>A busy front desk</h3><p>Walk-ins, emergencies and no-shows are juggled from memory.</p></article>
+</section>
+
+<h2 class="sec-title">How it works <small>Three steps for a patient</small></h2>
+<section class="how-split">
+  <ol class="step-list" aria-label="Steps">
+    <li class="info-card step"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span><div><h3>1. Get a token</h3><p>Book online in about ten seconds, or ask at the desk. You get a token number and a time to reach the clinic.</p></div></li>
+    <li class="info-card step"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></span><div><h3>2. Reach the clinic</h3><p>Tap <strong>I'm here</strong> on your token page, or tell reception. You join the queue in token order.</p></div></li>
+    <li class="info-card step"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span><div><h3>3. Watch your turn</h3><p>See your place, the estimated wait and the time you will be called. The page updates by itself.</p></div></li>
+  </ol>
+  <figure class="example" aria-label="Example of a token page">
+    <span class="example-tag">Example of what you see</span>
+    <div class="ticket" aria-hidden="true">
+      <div class="ticket-top">
+        <div><span class="ticket-label">Your token</span><div class="ticket-no">07</div></div>
+        <span class="badge badge-arrived">Waiting</span>
+      </div>
+      <div class="ticket-tear"></div>
+      <div class="ticket-body">
+        <ol class="progress">
+          <li class="done">Issued</li><li class="current">Waiting</li><li>Called</li><li>With doctor</li><li>Done</li>
+        </ol>
+        <p class="big">About 12 min</p>
+        <p>3 patients are ahead of you. Please stay nearby.</p>
+      </div>
+      <div class="ticket-info"><dl class="info">
+        <div><dt>Issued at</dt><dd>10:05 AM</dd></div>
+        <div><dt>Estimated turn</dt><dd>around 10:17 AM</dd></div>
+      </dl></div>
+    </div>
+  </figure>
+</section>
+
+<h2 class="sec-title">Fair by design <small>The rules everyone follows</small></h2>
+<section class="cards2" aria-label="Fairness rules">
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><h3>One line for everyone</h3><p>Online and walk-in patients share one queue and one number sequence.</p></article>
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span><h3>Emergencies first</h3><p>An emergency is seen next, without interrupting the patient already with the doctor.</p></article>
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><h3>A little grace if you are late</h3><p>Arrive up to 15 minutes after your time and keep your place. Later than that, you join behind those already waiting.</p></article>
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></span><h3>A second chance</h3><p>If you are called and not there within 5 minutes, your turn is skipped. You can rejoin once.</p></article>
+</section>
+
+<h2 class="sec-title">Who uses ClinicQ <small>Each person sees only what they need</small></h2>
+<section class="cards3" aria-label="Users">
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><h3>Patients</h3><p>Get a token, follow the queue and cancel if plans change. No account needed.</p></article>
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span><h3>Receptionists</h3><p>Issue walk-in slips, check patients in, flag emergencies and handle no-shows.</p></article>
+  <article class="info-card"><span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span><h3>Doctors</h3><p>Call the next patient, start and finish consultations, and see the day's load.</p></article>
+</section>
+
+<section class="info-card privacy" aria-label="Privacy">
+  <span class="icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+  <div><h3>Your privacy</h3><p>Only your name, phone number and token are stored. There are no medical records. Your token page shows just your first name and a masked phone number.</p></div>
+</section>
+
+<h2 class="sec-title">Quick answers</h2>
+<section class="faq" aria-label="Frequently asked questions">
+  <details><summary>Do I need an account?</summary><p>No. Enter your name and phone number to get a token. Only clinic staff sign in.</p></details>
+  <details><summary>I don't have a smartphone. Can I still use it?</summary><p>Yes. Ask the receptionist for a walk-in token. You get a printed slip with your token number and time.</p></details>
+  <details><summary>What does the estimated time mean?</summary><p>It is the number of patients ahead of you multiplied by the average consultation time today. It is an estimate, so it can change.</p></details>
+  <details><summary>I lost my token page. What now?</summary><p>Open <a href="http://127.0.0.1:5000/track">Track my token</a> and enter your phone number and token number.</p></details>
+</section>
+
+<section class="cta-band" id="about-cta">
+  <h2>Ready to skip the guesswork?</h2>
+  <div class="actions" style="justify-content:center">
+    <a id="about-cta-book" class="btn btn-white btn-lg" href="http://127.0.0.1:5000/book">Get a token</a>
+    <a id="about-cta-track" class="btn btn-ghost btn-lg" href="http://127.0.0.1:5000/track">Track my token</a>
+  </div>
+</section>
+
+<p class="about-note">ClinicQ is a queue tool, not a medical system. It never makes medical decisions. Built as a student mini project.</p>
+</div>
+
+</main>
+</body>
+</html>
