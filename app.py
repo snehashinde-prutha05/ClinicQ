@@ -30,6 +30,9 @@ else:
         "CLINICQ_DB",
         os.path.join(BASE, "clinicq.db")
     )
+
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    
 BIND_HOST = os.environ.get("CLINICQ_HOST", "127.0.0.1")
 TEST_MODE = os.environ.get("CLINICQ_TEST") == "1"   # enables /__test__ helpers
 
