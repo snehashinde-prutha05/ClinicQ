@@ -1,15 +1,18 @@
-"""ClinicQ - a fair queue and token system for small clinics (Flask + SQLite)."""
+"""ClinicQ - a fair queue and token system for small clinics (Flask + Neon PostgreSQL)."""
 import math
 import os
 import re
 import secrets
 import socket
-import sqlite3
+import psycopg
+from psycopg.rows import dict_row
 import unicodedata
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
+
+load_dotenv()  # Load local .env before reading DATABASE_URL
 
 from flask import (Flask, abort, flash, g, redirect, render_template, request,
                    session, url_for)
@@ -22,15 +25,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 # ----------------------------------------------------------------- config
 BASE = os.path.dirname(os.path.abspath(__file__))
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is missing. Add your Neon PostgreSQL connection string to the environment.")
 
-if os.environ.get("VERCEL"):
-    DB_PATH = "/tmp/clinicq.db"
-else:
-    DB_PATH = os.environ.get(
-        "CLINICQ_DB",
-        os.path.join(BASE, "clinicq.db")
-    )
-    
 BIND_HOST = os.environ.get("CLINICQ_HOST", "127.0.0.1")
 TEST_MODE = os.environ.get("CLINICQ_TEST") == "1"   # enables /__test__ helpers
 
@@ -52,20 +50,19 @@ ALLOWED = {
     "Skipped": {"Arrived", "Cancelled"},
 }
 
-load_dotenv()
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 app.config.update(SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_HTTPONLY=True)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS staff (
-    id INTEGER PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('receptionist', 'doctor'))
 );
 CREATE TABLE IF NOT EXISTS tokens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id BIGSERIAL PRIMARY KEY,
     code TEXT UNIQUE NOT NULL,
     day TEXT NOT NULL,
     token_no INTEGER NOT NULL,
@@ -87,29 +84,83 @@ CREATE UNIQUE INDEX IF NOT EXISTS one_active_phone ON tokens (day, phone)
     WHERE status IN ('Booked', 'Arrived', 'Called', 'In consultation');
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id BIGSERIAL PRIMARY KEY,
     at TEXT NOT NULL, actor TEXT NOT NULL, action TEXT NOT NULL, token_no INTEGER
 );
 """
 
 
+class HybridRow(dict):
+    """Dictionary-style database row that also supports SQLite-style [0] access."""
+    def __init__(self, data):
+        super().__init__(data)
+        self._values = list(data.values())
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._values[key]
+        return super().__getitem__(key)
+
+
+def hybrid_row_factory(cursor):
+    make_row = dict_row(cursor)
+    return lambda values: HybridRow(make_row(values))
+
+
+class Database:
+    """Small compatibility wrapper: keeps existing ? placeholders and executescript."""
+    def __init__(self, connection):
+        self.connection = connection
+
+    @staticmethod
+    def _sql(statement):
+        return statement.replace("?", "%s")
+
+    def execute(self, statement, params=()):
+        return self.connection.execute(self._sql(statement), params)
+
+    def executemany(self, statement, params):
+        return self.connection.cursor().executemany(self._sql(statement), params)
+
+    def executescript(self, script):
+        for statement in script.split(";"):
+            if statement.strip():
+                self.connection.execute(statement)
+
+    def commit(self):
+        self.connection.commit()
+
+    def close(self):
+        self.connection.close()
+
+
+def connect_db():
+    connection = psycopg.connect(
+        DATABASE_URL,
+        autocommit=True,
+        row_factory=hybrid_row_factory,
+        connect_timeout=10,
+    )
+    return Database(connection)
+
+
 def init_db():
-    con = sqlite3.connect(DB_PATH)
-    con.executescript(SCHEMA)
-    if con.execute("SELECT COUNT(*) FROM staff").fetchone()[0] == 0:
-        con.executemany(
-            "INSERT INTO staff (username, password_hash, role) VALUES (?, ?, ?)",
-            [("reception", generate_password_hash("reception123"), "receptionist"),
-             ("doctor", generate_password_hash("doctor123"), "doctor")])
-    con.commit()
-    con.close()
+    con = connect_db()
+    try:
+        con.executescript(SCHEMA)
+        if con.execute("SELECT COUNT(*) FROM staff").fetchone()[0] == 0:
+            con.executemany(
+                "INSERT INTO staff (username, password_hash, role) VALUES (?, ?, ?)",
+                [("reception", generate_password_hash("reception123"), "receptionist"),
+                 ("doctor", generate_password_hash("doctor123"), "doctor")])
+    finally:
+        con.close()
 
 
 # ------------------------------------------------------------- db helpers
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(DB_PATH, timeout=10, isolation_level=None)
-        g.db.row_factory = sqlite3.Row
+        g.db = connect_db()
     return g.db
 
 
@@ -122,9 +173,8 @@ def close_db(_exc):
 
 @contextmanager
 def tx(db):
-    """One write transaction. BEGIN IMMEDIATE makes two receptionists queue up
-    instead of both reading the same 'last token number' (R1)."""
-    db.execute("BEGIN IMMEDIATE")
+    """Run a PostgreSQL transaction; token issuance uses an advisory lock for R1."""
+    db.execute("BEGIN")
     try:
         yield
         db.execute("COMMIT")
@@ -309,6 +359,8 @@ def issue_token(db, actor, name, phone, source, emergency=False):
     n = now()
     try:
         with tx(db):
+            # Serialize token-number allocation for this clinic day across server instances.
+            db.execute("SELECT pg_advisory_xact_lock(hashtext(?))", (today(),))
             if db.execute(
                 "SELECT 1 FROM tokens WHERE day=? AND phone=? AND status IN "
                 "('Booked','Arrived','Called','In consultation')", (today(), phone)).fetchone():
@@ -329,13 +381,13 @@ def issue_token(db, actor, name, phone, source, emergency=False):
             cur = db.execute(
                 "INSERT INTO tokens (code, day, token_no, name, phone, source, status, "
                 "is_emergency, emergency_at, queue_pos, created_at, expected_arrival, arrived_at) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) RETURNING id",
                 (code, today(), no, name, phone, source, status,
                  1 if emergency else 0, ts_precise() if emergency else None, pos,
                  ts(n), expected, arrived))
-            tid = cur.lastrowid
+            tid = cur.fetchone()["id"]
             log(db, actor, "issued emergency token" if emergency else f"issued {source} token", no)
-    except sqlite3.IntegrityError:
+    except psycopg.IntegrityError:
         raise RuleError("Could not issue the token. Please try again.")
     return code, tid
 
@@ -582,7 +634,7 @@ def patient_action(code, action):
         else:
             act_rejoin(db, "patient", t["id"])
             flash("You are back in the queue.", "ok")
-    except (RuleError, sqlite3.IntegrityError) as e:
+    except (RuleError, psycopg.IntegrityError) as e:
         flash(str(e) if isinstance(e, RuleError) else "This phone number already has another active token.", "error")
     return redirect(url_for("status", code=code))
 
@@ -775,7 +827,7 @@ def token_action(tid, action):
             act_move(db, actor, tid, "Completed", stamp="completed_at", verb="completed")
     except RuleError as e:
         flash(str(e), "error")
-    except sqlite3.IntegrityError:
+    except psycopg.IntegrityError:
         flash("This phone number already has another active token today.", "error")
     return redirect(home_for(session["role"]))
 
